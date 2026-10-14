@@ -58,7 +58,12 @@
   const isCode = t => t.type !== 'ws' && t.type !== 'comment';
   const isPunct = (t, text) => !!t && t.type === 'punct' && t.text === text;
   const sameName = (a, b) => a.toLowerCase() === b.toLowerCase();
-  const letter = i => String.fromCharCode(65 + i);
+  // Spreadsheet column names: A … Z, AA, AB …
+  function letter(i) {
+    let name = '';
+    for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26)) name = String.fromCharCode(65 + ((n - 1) % 26)) + name;
+    return name;
+  }
   const quote = v => `'${v.replace(/'/g, "''")}'`;
   const textOf = tokens => tokens.map(t => t.text).join('');
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -69,6 +74,25 @@
 
   function isValidName(name) {
     return RE.ident.test(name);
+  }
+
+  /** Turns a spreadsheet header ("Transaction No.") into a usable @param name ("Transaction_No"). */
+  function toParamName(header) {
+    const parts = cleanParamName(header).split(/[^\p{L}\p{N}_$#]+/u);
+    const name = parts.filter((p, i) => p !== '' || (i > 0 && i < parts.length - 1)).join('_');
+    return name && !RE.ident.test(name[0]) ? '_' + name : name;
+  }
+
+  /** Makes names unique, ignoring case: a second "amount" becomes "amount_2". Blank names stay blank. */
+  function uniqueNames(names) {
+    const seen = new Set();
+    return names.map(raw => {
+      if (!raw) return raw;
+      let name = raw;
+      for (let n = 2; seen.has(name.toLowerCase()); n++) name = `${raw}_${n}`;
+      seen.add(name.toLowerCase());
+      return name;
+    });
   }
 
   // Only strip commas that really are thousands separators ("1,250.50"), not lists ("1,2,3").
@@ -154,23 +178,23 @@
     return tokens;
   }
 
-  /* ---------- clipboard (Excel / Google Sheets) ---------- */
+  /* ---------- clipboard (Excel / Google Sheets) and CSV files ---------- */
 
-  // Spreadsheets wrap a cell in quotes when it holds tabs, newlines or quotes.
+  // Spreadsheets wrap a cell in quotes when it holds the delimiter, newlines or quotes.
   // Returns null when the quote is just part of the value.
-  function readQuotedCell(src, start) {
+  function readQuotedCell(src, start, delimiter) {
     let value = '';
     for (let j = start + 1; j < src.length; j++) {
       if (src[j] !== '"') { value += src[j]; continue; }
       if (src[j + 1] === '"') { value += '"'; j++; continue; }
       const after = src[j + 1];
-      return after === undefined || after === '\t' || after === '\n' ? { value, end: j + 1 } : null;
+      return after === undefined || after === delimiter || after === '\n' ? { value, end: j + 1 } : null;
     }
     return null;
   }
 
-  /** Parses tab-separated text copied from a spreadsheet into rows of cells. */
-  function parseTSV(text) {
+  /** Parses delimited text (tab-separated from the clipboard, or a CSV file) into rows of cells. */
+  function parseDelimited(text, delimiter = '\t') {
     const src = String(text ?? '').replace(/\r\n?/g, '\n');
     const rows = [];
     let row = [];
@@ -179,14 +203,14 @@
     while (i < src.length) {
       const ch = src[i];
       if (ch === '"' && cell === '') {
-        const quoted = readQuotedCell(src, i);
+        const quoted = readQuotedCell(src, i, delimiter);
         if (quoted) {
           cell = quoted.value;
           i = quoted.end;
           continue;
         }
       }
-      if (ch === '\t') {
+      if (ch === delimiter) {
         row.push(cell);
         cell = '';
       } else if (ch === '\n') {
@@ -204,6 +228,21 @@
     // A copied block ends with a newline, which leaves an empty last line behind.
     while (rows.length > 1 && rows[rows.length - 1].every(v => v === '')) rows.pop();
     return rows;
+  }
+
+  const parseTSV = text => parseDelimited(text, '\t');
+
+  /** Guesses a CSV file's delimiter from its first line: comma, semicolon (European Excel), tab or pipe. */
+  function detectDelimiter(text) {
+    const counts = { ',': 0, ';': 0, '\t': 0, '|': 0 };
+    let quoted = false;
+    for (const ch of String(text ?? '').slice(0, 64 * 1024)) {
+      if (ch === '"') quoted = !quoted;
+      else if (!quoted && (ch === '\n' || ch === '\r')) break;
+      else if (!quoted && ch in counts) counts[ch]++;
+    }
+    const best = Object.keys(counts).reduce((a, b) => (counts[b] > counts[a] ? b : a));
+    return counts[best] ? best : ',';
   }
 
   /* ---------- Queryboard parsing ---------- */
@@ -456,9 +495,10 @@
    *  - a @param being retyped renames its column instead of making a new one,
    *  - an auto column whose @param disappeared is freed again if it holds no real data,
    *  - "@p = <literal>" in an EXEC writes the literal into row 1 (unless the user typed something else there).
+   * When every column is taken, new ones are added up to `maxColumns`.
    * Mutates `columns` and `rows`. Returns the indexes of columns that changed and any @params that didn't fit.
    */
-  function syncColumns(columns, rows, prevParams, nextParams) {
+  function syncColumns(columns, rows, prevParams, nextParams, { maxColumns = columns.length } = {}) {
     const key = s => cleanParamName(s).toLowerCase();
     const find = name => columns.findIndex(c => key(c.name) === key(name));
     const listed = (list, name) => list.some(p => key(p.name) === key(name));
@@ -475,7 +515,11 @@
         changed.add(from);
         return;
       }
-      const free = columns.findIndex((_, j) => isFree(j));
+      let free = columns.findIndex((_, j) => isFree(j));
+      if (free === -1 && columns.length < maxColumns) {
+        free = columns.push(blankColumn()) - 1;
+        rows.forEach(r => r.push(''));
+      }
       if (free === -1) {
         overflow.push(p.name);
         return;
@@ -648,8 +692,13 @@
   }
 
   function buildDirect(segments, rowValues) {
-    const statements = rowValues.map(vals =>
-      finishStatement(renderSegments(segments, name => vals.get(name.toLowerCase()) ?? '@' + name)));
+    // Whether a statement needs its closing ';' depends on the query, not the values: decide once.
+    const probe = renderSegments(segments, () => '0').trim();
+    const close = finishStatement(probe) !== probe;
+    const statements = rowValues.map(vals => {
+      const s = renderSegments(segments, name => vals.get(name.toLowerCase()) ?? '@' + name).trim();
+      return close && !s.endsWith(';') ? s + ';' : s;
+    });
     return statements.join(statements.some(s => s.includes('\n')) ? '\n\n' : '\n');
   }
 
@@ -836,6 +885,8 @@
     TYPES,
     tokenize,
     parseTSV,
+    parseDelimited,
+    detectDelimiter,
     parseQuery,
     queryUsesParam,
     renameParam,
@@ -844,6 +895,9 @@
     formatValue,
     cleanParamName,
     isValidName,
+    toParamName,
+    uniqueNames,
+    letter,
     build,
   };
 });

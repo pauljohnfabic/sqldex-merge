@@ -53,6 +53,10 @@
             <span class="count" id="rowCount">0 rows</span>
           </div>
           <div class="panel-actions">
+            <button class="btn btn-accent" id="importBtn" type="button" title="Import a .xlsx, .xls, .csv or .json file">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10.5V2.5M4.8 5.7 8 2.5l3.2 3.2M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/></svg>Import
+            </button>
+            <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv,.txt,.json,.jsonl,.ndjson" hidden>
             <button class="btn" id="addRowsBtn" type="button">
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>10 rows
             </button>
@@ -71,7 +75,8 @@
           </table>
         </div>
         <footer class="panel-foot sheet-foot">
-          <p class="hint">Paste from Excel or Google Sheets into any cell. Paste into a <b>column name</b> to bring the headers along.</p>
+          <p class="hint">Paste from Excel or Google Sheets, or <b>Import</b> / drop a .xlsx, .csv or .json file. Paste into a <b>column name</b> to bring the headers along.</p>
+          <p class="hint storage-note" id="storageNote" hidden>Too many rows for the browser to remember. After you close the page, only the Queryboard and the column names will be kept.</p>
           <div class="legend" id="legend" aria-label="Type colors"></div>
         </footer>
       </section>
@@ -123,7 +128,45 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <div class="drop-overlay" aria-hidden="true">
+    <div class="drop-card">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10.5V2.5M4.8 5.7 8 2.5l3.2 3.2M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/></svg>
+      <b>Drop to import</b>
+      <span>.xlsx · .xls · .csv · .json</span>
+    </div>
+  </div>
+
+  <dialog class="dialog" id="importDialog" aria-labelledby="importTitle">
+    <form method="dialog" class="dialog-card">
+      <header class="dialog-head">
+        <h2 id="importTitle">Import <span class="file-name" id="importFile"></span></h2>
+        <button class="icon-btn" value="cancel" aria-label="Close">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>
+        </button>
+      </header>
+      <div class="dialog-body">
+        <div class="import-controls">
+          <label class="field" id="importSheetField"><span>Sheet</span><select class="select" id="importSheet"></select></label>
+          <label class="check-toggle">
+            <input type="checkbox" id="importHeader">
+            <span class="check-box" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg></span>
+            <span>First row has column names</span>
+          </label>
+        </div>
+        <p class="import-summary" id="importSummary"></p>
+        <div class="import-map" id="importMap"></div>
+        <div class="import-preview"><table class="preview-table" id="importPreview"></table></div>
+      </div>
+      <footer class="dialog-foot">
+        <span class="dialog-note">Replaces what's in the sheet. You can undo it.</span>
+        <button class="btn" value="cancel">Cancel</button>
+        <button class="btn btn-primary" value="import" id="importConfirm">Import</button>
+      </footer>
+    </form>
+  </dialog>
+
   <script src="js/engine.js"></script>
+  <script src="js/importer.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

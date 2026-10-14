@@ -422,11 +422,6 @@ svg { flex: none; }
   background: radial-gradient(circle at 35% 32%, #e6f3ff 0 14%, #6cb4ff 26%, #2f6fd6 62%, #183e86 100%);
   box-shadow: 0 0 0 2px #e8ecff22, 0 0 14px rgba(108, 180, 255, .55);
 }
-.lens.blink { animation: lens .45s ease-out; }
-@keyframes lens {
-  0% { box-shadow: 0 0 0 2px #e8ecff22, 0 0 26px rgba(160, 210, 255, 1); filter: brightness(1.5); }
-  100% { box-shadow: 0 0 0 2px #e8ecff22, 0 0 14px rgba(108, 180, 255, .55); filter: none; }
-}
 
 .live {
   font: 700 10px/1 var(--font-ui);
@@ -846,6 +841,7 @@ svg { flex: none; }
 .mode-hint button:hover { background: rgba(143, 180, 255, .3); }
 
 .code {
+  contain: content; /* a long script lays out on its own */
   flex: 1;
   min-height: 0;
   margin: 0;
@@ -856,14 +852,13 @@ svg { flex: none; }
   color: #cdd2f0;
   white-space: pre;
   tab-size: 4;
-  counter-reset: ln;
   outline: none;
 }
 .code:focus-visible { box-shadow: inset 0 0 0 2px rgba(255, 203, 5, .4); }
 
+/* Line numbers come from data-n: CSS counters get slow over hundreds of lines */
 .ln::before {
-  counter-increment: ln;
-  content: counter(ln);
+  content: attr(data-n);
   display: inline-block;
   width: var(--gutter, 3ch);
   margin-right: 18px;
@@ -1012,4 +1007,238 @@ svg { flex: none; }
   *,
   *::before,
   *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- growing sheet ---------- */
+
+.btn-accent {
+  border-color: rgba(143, 180, 255, .45);
+  background: rgba(61, 125, 202, .2);
+  color: #cfe0ff;
+}
+.btn-accent:hover { background: rgba(61, 125, 202, .32); border-color: var(--blue-soft); }
+
+.icon-btn:disabled { opacity: .3; cursor: not-allowed; }
+.icon-btn:disabled:hover { background: transparent; color: var(--muted); }
+
+.col-add {
+  width: 56px;
+  min-width: 56px;
+  vertical-align: middle;
+  border-right: 0 !important;
+}
+.add-col {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: 0 auto;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  color: var(--muted);
+  transition: background .15s, border-color .15s, color .15s;
+}
+.add-col:hover { border-color: var(--yellow); color: var(--yellow); background: rgba(255, 203, 5, .08); }
+.add-col svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+
+/* Rows outside the scrolled-to window are stand-ins: one tall empty row above, one below. */
+.sheet tbody tr.spacer td { padding: 0; border: 0; background: none !important; }
+
+.storage-note { color: #ffb36b; }
+
+/* Long scripts only draw the first lines on screen */
+.more-lines {
+  display: block;
+  padding-left: calc(var(--gutter, 3ch) + 18px);
+  color: #646b97;
+  font-style: italic;
+}
+
+/* ---------- drop a file ---------- */
+
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: none;
+  place-items: center;
+  background: rgba(8, 10, 26, .72);
+  backdrop-filter: blur(3px);
+  pointer-events: none;
+}
+.is-dropping .drop-overlay { display: grid; }
+.drop-card {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 34px 48px;
+  border-radius: 20px;
+  border: 2px dashed var(--yellow);
+  background: rgba(26, 31, 62, .92);
+  color: var(--text);
+  font-size: 15px;
+}
+.drop-card svg { width: 34px; height: 34px; fill: none; stroke: var(--yellow); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.drop-card span { color: var(--muted); font: 500 12px/1 var(--font-mono); }
+
+/* ---------- import dialog ---------- */
+
+.dialog {
+  width: min(880px, calc(100vw - 32px));
+  max-height: min(86vh, 760px);
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .85);
+  overflow: hidden;
+}
+.dialog::backdrop { background: rgba(6, 8, 22, .7); backdrop-filter: blur(2px); }
+.dialog[open] { display: flex; }
+
+.dialog-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 12px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.dialog-head h2 { margin: 0; font-size: 15px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-name { color: var(--yellow); font: 600 13px/1 var(--font-mono); margin-left: 4px; }
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 14px 18px;
+  overflow: auto;
+}
+
+.import-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.field[hidden] { display: none; }
+
+.select {
+  height: 32px;
+  max-width: 100%;
+  padding: 0 28px 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--code-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5l3-3' fill='none' stroke='%23959cc6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 9px center / 12px;
+  color: var(--text);
+  font: 500 12.5px/1 var(--font-mono);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.select:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+.select option { background: var(--surface-2); color: var(--text); }
+
+.import-summary { margin: 0; font-size: 13px; color: var(--muted); }
+.import-summary b { color: var(--text); }
+.import-summary .note { color: #ffb36b; }
+
+.import-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, .02);
+}
+.import-map[hidden] { display: none; }
+.import-map-title {
+  flex-basis: 100%;
+  margin: 0;
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.map-row { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.map-param { color: var(--blue-soft); font: 600 12.5px/1 var(--font-mono); white-space: nowrap; }
+
+.import-preview {
+  min-height: 0;
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+}
+.preview-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font: 12px/1.4 var(--font-mono);
+}
+.preview-table th,
+.preview-table td {
+  max-width: 200px;
+  padding: 7px 10px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.preview-table thead th { position: sticky; top: 0; background: var(--surface-2); vertical-align: bottom; }
+.preview-table tbody th { color: var(--faint); font-weight: 500; text-align: center; }
+.preview-table tbody tr:last-child > * { border-bottom: 0; }
+.pv-letter { display: block; margin-bottom: 4px; font: 700 10px/1 var(--font-ui); letter-spacing: .08em; color: var(--faint); }
+.pv-name { color: var(--text); font-weight: 700; }
+.pv-name.is-blank { color: var(--faint); font-weight: 500; font-style: italic; }
+.preview-table th.is-linked { box-shadow: inset 0 3px 0 var(--green); }
+.preview-table th.is-linked .pv-name { color: #a3e27e; }
+
+.dialog-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 18px 14px;
+  border-top: 1px solid var(--border);
+  background: rgba(10, 13, 32, .35);
+}
+.dialog-note { margin-right: auto; font-size: 12px; color: var(--faint); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+  .dialog-body { padding: 12px 14px; }
+  .dialog-note { flex-basis: 100%; }
+  .map-row { flex-wrap: wrap; }
+}
+
+.preview-table,
+.select,
+.map-param,
+.file-name {
+  font-variant-ligatures: none;
+  font-feature-settings: 'calt' 0, 'liga' 0;
 }

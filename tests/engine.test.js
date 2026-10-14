@@ -249,6 +249,35 @@ test('parseTSV: quoted cells, CRLF and the trailing newline', () => {
   assert.deepEqual(E.parseTSV('"quoted" not\tx'), [['"quoted" not', 'x']]);
 });
 
+test('column letters go past Z like a spreadsheet', () => {
+  assert.deepEqual([0, 25, 26, 51, 52, 701, 702].map(E.letter), ['A', 'Z', 'AA', 'AZ', 'BA', 'ZZ', 'AAA']);
+});
+
+test('headers become valid @param names', () => {
+  assert.deepEqual(
+    ['Transaction No.', ' Customer Name ', '@docno', 'Amount (PHP)', '2024 Sales', '_id', 'Ñiño', '***'].map(E.toParamName),
+    ['Transaction_No', 'Customer_Name', 'docno', 'Amount_PHP', '_2024_Sales', '_id', 'Ñiño', ''],
+  );
+  assert.deepEqual(E.uniqueNames(['amount', 'Amount', '', 'amount']), ['amount', 'Amount_2', '', 'amount_3']);
+});
+
+test('CSV parsing and delimiter detection', () => {
+  assert.deepEqual(E.parseDelimited('name,amount\n"Doe, John","1,250.50"\n"say ""hi""",3\r\n', ','),
+    [['name', 'amount'], ['Doe, John', '1,250.50'], ['say "hi"', '3']]);
+  assert.equal(E.detectDelimiter('a;b;"c;d"\n1;2;3'), ';');
+  assert.equal(E.detectDelimiter('a\tb'), '\t');
+  assert.equal(E.detectDelimiter('single'), ',');
+});
+
+test('syncColumns adds a column when every one is taken (up to maxColumns)', () => {
+  const { columns, rows } = sheet([['a'], ['b'], ['c'], ['d'], ['e'], ['f'], ['g'], ['h'], ['i'], ['j']], [], 3);
+  const next = E.parseQuery('select @a, @k, @l').params;
+  const { overflow } = E.syncColumns(columns, rows, [], next, { maxColumns: 11 });
+  assert.deepEqual(columns.slice(10).map(c => c.name), ['k']);
+  assert.deepEqual(overflow, ['l']);
+  assert.ok(rows.every(r => r.length === 11));
+});
+
 test('tokenize round-trips the input exactly', () => {
   const src = "exec re.x @a = N'it''s', @b = [col]] x] /* c */ -- end\n@@ROWCOUNT 1.5";
   assert.equal(E.tokenize(src).map(t => t.text).join(''), src);

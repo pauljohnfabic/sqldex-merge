@@ -1,6 +1,6 @@
 # SQLDex Merge
 
-Write a T-SQL query once, paste your rows from Excel or Google Sheets, and get a ready-to-run script.
+Write a T-SQL query once, paste or import your rows (Excel, CSV or JSON), and get a ready-to-run script.
 
 ![SQLDex Merge](docs/screenshot.png)
 
@@ -8,7 +8,8 @@ Write a T-SQL query once, paste your rows from Excel or Google Sheets, and get a
 
 - **Queryboard.** Type any T-SQL: `EXEC`, `SELECT`, `INSERT`, `UPDATE`, `DELETE`, or a multi-statement script. Every `@param` becomes a column in the sheet.
 - **Two-way sync.** Typing a `@param` names a column, and renaming a column renames the `@param` in the query.
-- **Spreadsheet-style sheet.** Up to 10 columns. Paste a block of cells straight from Excel or Google Sheets, with or without headers.
+- **Spreadsheet-style sheet.** Starts with 10 columns and grows to 100, with up to 100,000 rows. Paste a block of cells straight from Excel or Google Sheets, with or without headers.
+- **Import files.** Open or drop a `.xlsx`, `.xls`, `.csv` or `.json` file. You pick the sheet, check the preview, and choose which column feeds each `@param`.
 - **Column types.** *Auto* detects the type from the data, or you can pick INT, BIGINT, DECIMAL, BIT, VARCHAR, NVARCHAR, DATE, DATETIME or GUID. Cells that don't match their type turn red.
 - **Safe values.** Quotes are escaped, Unicode text gets `N'...'`, and blank cells become `NULL`.
 - **Two output modes.**
@@ -40,7 +41,7 @@ Then open `index.html` in any modern browser (Chrome, Edge or Firefox). There's 
 
    Column A of the sheet is named `docno`.
 
-2. **Paste your data** into the sheet, one row per execution.
+2. **Add your data**, one row per execution: paste it into the sheet, or click **Import** (or drop a file on the page).
 3. **Check the type** above each column. *Auto* is usually right. Pick a type to override it.
 4. **Choose Direct or Loop**, then click **Copy**.
 5. **Run the script in SSMS.** With BEGIN TRAN on, the first run rolls back. When the result looks right, change `@iscommit` to `1` and run it again to commit.
@@ -136,6 +137,33 @@ Turn it off for:
 - statements that can't run inside a transaction, such as `RESTORE DATABASE`;
 - scripts that contain `GO`, because `GO` ends the batch and `@iscommit` stops existing after it.
 
+## Importing a file
+
+Click **Import** in the Sheet panel, or drop a file anywhere on the page.
+
+| File | What comes in |
+|---|---|
+| `.xlsx`, `.xlsm`, `.xls`, `.xlsb`, `.ods` | Any sheet of the workbook. The sheet whose columns match your `@params` is picked first. |
+| `.csv`, `.tsv`, `.txt` | Comma, semicolon, tab or pipe separated. UTF-8, UTF-16 and Excel's plain "CSV" (Windows-1252) all work. |
+| `.json`, `.jsonl` | An array of objects (the keys become the column names) or of arrays. Each array inside an object, such as `{ "data": [...] }`, shows up as its own sheet. JSON Lines works too. |
+
+The import window shows a preview and lets you:
+
+- choose the sheet;
+- say whether the first row has column names (it guesses);
+- choose which column fills each Queryboard `@param`. Headers are matched ignoring case, spaces and underscores, so `Transaction No.` fills `@transactionno`.
+
+Headers become valid parameter names (`Customer Name` becomes `Customer_Name`), and you can rename them in the sheet afterwards. Importing replaces the sheet, and you can undo it.
+
+How values come in:
+
+- **Numbers** keep every digit, even when Excel shows `1.23457E+11` or `₱1,250.00`. Zero-padded codes like `0007` keep their zeros.
+- **Dates** become `yyyy-mm-dd` (or `yyyy-mm-dd hh:mm:ss`), which SQL Server reads the same way under any language setting.
+- **TRUE/FALSE** stay as words, so *Auto* makes the column a BIT.
+- **JSON `null`** becomes `NULL`. Nested objects and arrays become JSON text, for procedures that take JSON.
+
+Empty rows, and columns that are empty all the way down, are left out.
+
 ## Value rules
 
 | Type | How a cell is written |
@@ -152,8 +180,11 @@ Turn it off for:
 
 - `Enter` / `Shift+Enter` move down and up. The arrow keys move between cells.
 - Paste into a **column name** cell to bring the header line along with the data.
-- Hover over a column header for **Fill blanks down** and **Clear column data**.
-- Paste, Clear, Sample, Fill blanks down and Clear column data can each be undone from the message that pops up afterwards.
+- Pasting something wider than the sheet adds columns. The **+** after the last column adds one too.
+- Hover over a column header for **Fill blanks down**, **Clear column data** and **Remove column**. A column that the Queryboard names itself can't be removed; take the `@param` out of the query first.
+- Big sheets stay fast: only the rows on screen are drawn, and the Output panel shows the first 300 lines. **Copy** always copies the whole script.
+- If a sheet is too big for the browser to remember, a note says so. The Queryboard and the column names are still kept.
+- Paste, Import, Clear, Sample, Fill blanks down, Clear column data and Remove column can each be undone from the message that pops up afterwards.
 
 ## Options
 
@@ -167,7 +198,7 @@ These are at the bottom of the Output panel.
 
 ## Development
 
-The SQL engine has unit tests (Node 18 or newer):
+The engine and the importer have unit tests (Node 18 or newer):
 
 ```sh
 npm test
@@ -178,11 +209,13 @@ npm test
 | `index.html` | The page |
 | `css/styles.css` | The theme |
 | `js/engine.js` | Query parsing, sheet ⇄ query sync and SQL generation. It has no DOM code, so it runs in Node too. |
+| `js/importer.js` | Reads uploaded files into sheet rows. No DOM code either. |
 | `js/app.js` | The UI |
-| `tests/engine.test.js` | Engine tests |
+| `vendor/xlsx.full.min.js` | [SheetJS](https://sheetjs.com) Community Edition 0.20.3, which reads Excel files. It loads only when you import one. |
+| `tests/` | Engine and importer tests |
 
-Plain HTML, CSS and JavaScript, with no framework and no dependencies.
+Plain HTML, CSS and JavaScript, with no framework and no build step. The only third-party code is SheetJS, kept in `vendor/` so the tool also works offline.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). SheetJS is under the Apache License 2.0 ([vendor/xlsx.LICENSE](vendor/xlsx.LICENSE)).
