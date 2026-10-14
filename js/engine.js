@@ -1,14 +1,14 @@
 /**
- * SP-Dex engine — everything that isn't UI:
+ * SQLDex Merge engine — everything that isn't UI:
  *   - reads the Queryboard (an EXEC call, or any SQL with @params),
  *   - keeps the sheet's columns in step with those @params while you type,
  *   - turns sheet rows into T-SQL: one statement per row, or a WHILE loop over @tbl.
- * No DOM in here, so the same file runs in the browser (window.SpDexEngine) and in the Node tests.
+ * No DOM in here, so the same file runs in the browser (window.SqlDexEngine) and in the Node tests.
  */
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.SpDexEngine = api;
+  else root.SqlDexEngine = api;
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 

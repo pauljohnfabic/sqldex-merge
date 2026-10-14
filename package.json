@@ -1,8 +1,8 @@
 {
-  "name": "sp-dex",
+  "name": "sqldex-merge",
+  "description": "Paste rows from a sheet, get a ready-to-run T-SQL script.",
   "version": "1.0.0",
   "private": true,
-  "description": "Paste sheet data, write a query with @params, get the T-SQL.",
   "scripts": {
     "test": "node --test"
   }

@@ -1,15 +1,15 @@
-/* SP-Dex UI — wires the Queryboard, the sheet and the live output together.
+/* SQLDex Merge UI — wires the Queryboard, the sheet and the live output together.
    All SQL logic lives in engine.js. */
 (function () {
   'use strict';
 
-  const E = window.SpDexEngine;
+  const E = window.SqlDexEngine;
 
   const COLS = 10;
   const MIN_ROWS = 20;
   const SPARE_ROWS = 5;
   const GROW_BY = 10;
-  const STORAGE_KEY = 'sp-dex:v1';
+  const STORAGE_KEY = 'sqldex-merge:v1';
 
   // Every SQL type wears a Pokémon type color (the [data-poke] tokens in styles.css).
   const TYPE_INFO = {

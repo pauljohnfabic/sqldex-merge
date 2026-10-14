@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SP-Dex — night-mode Pokédex
+   SQLDex Merge — night-mode Pokédex
    ========================================================================== */
 
 :root {
@@ -170,10 +170,24 @@ svg { flex: none; }
 }
 
 .tagline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin: 8px 0 0;
   font-size: 12px;
   color: var(--muted);
   letter-spacing: .02em;
+}
+.tool-name {
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 203, 5, .45);
+  background: rgba(255, 203, 5, .1);
+  color: var(--yellow);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
 
 @media (max-width: 860px) {
