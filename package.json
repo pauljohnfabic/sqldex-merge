@@ -3,6 +3,7 @@
   "description": "Paste rows from a sheet, get a ready-to-run T-SQL script.",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "test": "node --test"
   }

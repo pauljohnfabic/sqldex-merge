@@ -20,11 +20,15 @@ Write a T-SQL query once, paste your rows from Excel or Google Sheets, and get a
 
 ## Getting started
 
+Use it online at **https://pauljohnfabic.github.io/sqldex-merge/**.
+
+To run it on your own machine:
+
 ```sh
 git clone https://github.com/pauljohnfabic/sqldex-merge.git
 ```
 
-Open `index.html` in any modern browser (Chrome, Edge or Firefox). There's no build step and no server.
+Then open `index.html` in any modern browser (Chrome, Edge or Firefox). There's no build step and no server.
 
 ## How to use
 
@@ -178,3 +182,7 @@ npm test
 | `tests/engine.test.js` | Engine tests |
 
 Plain HTML, CSS and JavaScript, with no framework and no dependencies.
+
+## License
+
+[MIT](LICENSE)
