@@ -1,0 +1,9 @@
+{
+  "name": "sp-dex",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Paste sheet data, write a query with @params, get the T-SQL.",
+  "scripts": {
+    "test": "node --test"
+  }
+}
